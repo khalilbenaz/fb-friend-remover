@@ -15,14 +15,7 @@ Facebook Friend Remover Pro est une extension Chrome qui facilite la gestion de 
 
 ## Installation
 
-### Méthode 1 : Depuis le Chrome Web Store (recommandé)
-
-1. Ouvrez Chrome et allez sur le [Chrome Web Store](https://chromewebstore.google.com/)
-2. Recherchez "Facebook Friend Remover Pro"
-3. Cliquez sur "Ajouter à Chrome"
-4. Confirmez l'installation
-
-### Méthode 2 : Installation manuelle (pour les développeurs)
+### Installation manuelle 
 
 1. **Téléchargez ou clonez le dépôt** :
    ```bash
