@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Activer Premium</title>
+  <style>
+    body { font-family: Arial; padding: 40px; max-width: 400px; margin: 0 auto; }
+    input { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #667eea; border-radius: 8px; }
+    button { width: 100%; padding: 14px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .success { color: green; margin-top: 15px; }
+    .error { color: red; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h2>💎 Activer Premium</h2>
+  <p>Entrez votre clé d'activation reçue par email</p>
+  <input type="text" id="licenseKey" placeholder="XXXX-XXXX-XXXX-XXXX">
+  <button onclick="activate()">Activer</button>
+  <div id="message"></div>
+  
+  <script>
+    async function activate() {
+      const key = document.getElementById('licenseKey').value.trim();
+      
+      if (key.length < 10) {
+        document.getElementById('message').innerHTML = '<p class="error">❌ Clé invalide</p>';
+        return;
+      }
+      
+      // Sauvegarder (en production, vérifiez via API)
+      await chrome.storage.local.set({ 
+        isPremium: true,
+        licenseKey: key,
+        activatedAt: Date.now()
+      });
+      
+      document.getElementById('message').innerHTML = '<p class="success">✅ Premium activé !</p>';
+      
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
