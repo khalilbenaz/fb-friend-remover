@@ -3,381 +3,309 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 380px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    :root {
+      --primary-grad: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+      --danger-grad: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
     
-    .premium-banner {
-      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-      padding: 15px;
+    body { 
+      width: 380px; 
+      background-color: var(--bg); 
+      color: var(--text-main);
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--primary-grad);
+      padding: 24px 20px;
+      color: white;
       text-align: center;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-      animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.85; }
-    }
-    
-    .header { 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-      padding: 20px; 
-      text-align: center; 
-      color: white; 
-    }
-    .header h1 { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
-    .header .version { font-size: 10px; opacity: 0.8; }
-    
-    .content { padding: 20px; max-height: 600px; overflow-y: auto; }
-    
-    .premium-features {
-      background: #fffbea;
-      border: 2px solid #FFD700;
-      border-radius: 10px;
-      padding: 15px;
+      border-radius: 0 0 20px 20px;
+      box-shadow: var(--shadow);
       margin-bottom: 20px;
     }
-    
-    .premium-features h3 { 
-      font-size: 14px; 
-      color: #000; 
-      margin-bottom: 10px; 
-      display: flex; 
-      align-items: center; 
-      gap: 8px; 
-    }
-    
-    .premium-features ul { list-style: none; padding: 0; }
-    .premium-features li { 
-      padding: 6px 0; 
-      font-size: 12px; 
-      color: #333; 
-      display: flex; 
-      align-items: center; 
-      gap: 8px; 
-    }
-    .premium-features li.locked { opacity: 0.6; }
-    .premium-features li.locked::before { content: '🔒'; }
-    .premium-features li:not(.locked)::before { content: '✅'; }
-    
-    .settings-section { 
-      margin-bottom: 20px; 
-      padding: 15px; 
-      background: #f8f9fa; 
-      border-radius: 10px; 
-    }
-    .settings-section h3 { 
-      font-size: 13px; 
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .badge { 
+      background: rgba(255,255,255,0.2); 
+      padding: 4px 10px; 
+      border-radius: 20px; 
+      font-size: 10px; 
       font-weight: 600; 
-      margin-bottom: 12px; 
+      backdrop-filter: blur(4px);
+    }
+
+    .container { padding: 0 20px 20px; }
+
+    /* CARDS */
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    /* INPUTS GRID */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    
+    .input-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      transition: all 0.2s;
+      background: #f9fafb;
+    }
+    input:focus { 
+      outline: none; 
+      border-color: #4f46e5; 
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    /* STATS GRID */
+    .stats-panel { display: none; animation: slideDown 0.3s ease; }
+    @keyframes slideDown { from {opacity:0; transform:translateY(-10px);} to {opacity:1; transform:translateY(0);} }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .stat-box {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .stat-value { font-size: 20px; font-weight: 800; display: block; }
+    .stat-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+    .text-danger { color: #ef4444; }
+    .text-success { color: #10b981; }
+
+    /* ACTION INFO */
+    .action-info {
+      font-size: 12px;
+      text-align: center;
+      color: var(--text-muted);
+      margin-top: 10px;
+      background: #eef2ff;
+      padding: 8px;
+      border-radius: 8px;
+      color: #4f46e5;
+      font-weight: 600;
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis;
+    }
+
+    /* PROGRESS BAR */
+    .progress-container {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--primary-grad);
+      width: 0%;
+      transition: width 0.3s ease;
+      background-size: 20px 20px;
+      background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+      animation: progress-stripes 1s linear infinite;
+    }
+    @keyframes progress-stripes { from {background-position: 20px 0} to {background-position: 0 0} }
+
+    /* BUTTONS */
+    .btn-group { display: flex; flex-direction: column; gap: 10px; }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
     
-    .input-group { margin-bottom: 12px; }
-    .input-group label { 
-      display: block; 
-      font-size: 12px; 
-      font-weight: 500; 
-      color: #65676b; 
-      margin-bottom: 6px; 
+    button:active { transform: scale(0.98); }
+
+    .btn-action {
+      background: white;
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
     }
-    .input-group input { 
-      width: 100%; 
-      padding: 10px; 
-      border: 2px solid #e4e6eb; 
-      border-radius: 8px; 
-      font-size: 14px; 
-      transition: border 0.3s;
+    .btn-action:hover:not(:disabled) {
+      border-color: #4f46e5;
+      background: #f9fafb;
+      color: #4f46e5;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
     }
-    .input-group input:focus { outline: none; border-color: #667eea; }
-    .input-group input:disabled { background: #f0f0f0; cursor: not-allowed; }
-    .input-group input.changed { border-color: #FFA500; background: #fff8e6; }
-    
-    .apply-btn {
-      width: 100%;
-      padding: 10px;
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    .btn-action .icon { font-size: 16px; width: 20px; text-align: center; }
+
+    .btn-primary {
+      background: var(--primary-grad);
       color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+      justify-content: center;
+      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-stop {
+      background: var(--danger-grad);
+      color: white;
+      justify-content: center;
+      display: none;
+      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);} 100% {box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);} }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    /* STATUS TOAST */
+    .status-msg {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
       font-size: 12px;
+      text-align: center;
       font-weight: 600;
       display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
-      box-shadow: 0 3px 8px rgba(40,167,69,0.3);
-      animation: slideDown 0.3s ease;
+      animation: slideUp 0.3s ease;
     }
+    @keyframes slideUp { from {opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
     
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .apply-btn:hover { background: linear-gradient(135deg, #218838 0%, #1aa179 100%); }
-    .apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    .settings-note {
-      font-size: 10px;
-      color: #6c757d;
-      padding: 8px;
-      background: #e7f3ff;
-      border-left: 3px solid #667eea;
-      border-radius: 5px;
-      margin-top: 10px;
-      display: none;
-    }
-    
-    button { 
-      width: 100%; 
-      padding: 12px; 
-      margin: 6px 0; 
-      border: none; 
-      border-radius: 10px; 
-      cursor: pointer; 
-      font-size: 13px; 
-      font-weight: 600; 
-      transition: all 0.3s; 
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.12);
-    }
-    button:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.2); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    
-    .btn-icon { font-size: 18px; }
-    .btn-text { flex: 1; text-align: left; font-size: 12px; }
-    
-    #upgradeBtn { 
-      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); 
-      color: #000; 
-      font-size: 14px; 
-      margin: 15px 0; 
-      justify-content: center;
-    }
-    
-    #removeArabic { background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; }
-    #removeNonArabic { background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); color: white; }
-    #removeNoMutual { background: linear-gradient(135deg, #A8E063 0%, #56ab2f 100%); color: white; }
-    #removeAll { background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%); color: white; }
-    #stopButton { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; display: none; }
-    
-    .stats-section { 
-      margin-top: 15px; 
-      padding: 15px; 
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-      border-radius: 10px; 
-      border-left: 4px solid #667eea; 
-    }
-    .stats-section h3 { 
-      font-size: 13px; 
-      font-weight: 600; 
-      color: #1c1e21; 
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .stat-item { 
-      display: flex; 
-      justify-content: space-between; 
-      padding: 8px 0; 
-      border-bottom: 1px solid #dee2e6; 
-      font-size: 12px; 
-    }
-    .stat-item:last-child { border-bottom: none; }
-    .stat-label { color: #6c757d; font-weight: 500; }
-    .stat-value { color: #1c1e21; font-weight: 700; }
-    .stat-value.success { color: #28a745; }
-    .stat-value.warning { color: #ffc107; }
-    .stat-value.info { color: #667eea; }
-    
-    .current-friend { 
-      margin-top: 10px; 
-      padding: 10px; 
-      background: white; 
-      border-radius: 8px; 
-      font-size: 11px; 
-      color: #1c1e21;
-      word-wrap: break-word;
-    }
-    .current-friend strong { color: #667eea; }
-    
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: #e9ecef;
-      border-radius: 10px;
-      overflow: hidden;
-      margin: 10px 0;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      width: 0%;
-      transition: width 0.5s ease;
-    }
-    
-    #status { 
-      margin-top: 15px; 
-      padding: 12px; 
-      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); 
-      border-radius: 8px; 
-      font-size: 11px; 
-      color: #856404; 
-      text-align: center; 
-      font-weight: 500; 
-      border-left: 3px solid #ffc107; 
-    }
-    
-    #status.success { 
-      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); 
-      color: #155724; 
-      border-left-color: #28a745;
-    }
-    
-    #status.error { 
-      background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); 
-      color: #721c24; 
-      border-left-color: #dc3545;
-    }
+    .status-msg.active { display: block; }
+    .status-msg.info { background: #e0e7ff; color: #4338ca; }
+    .status-msg.success { background: #d1fae5; color: #065f46; }
+    .status-msg.error { background: #fee2e2; color: #991b1b; }
+
   </style>
 </head>
 <body>
-  
-  <div class="premium-banner" id="premiumBanner" style="display: none;">
-    💎 VERSION GRATUITE - Limité à 10 suppressions - CLIQUEZ POUR UPGRADE
-  </div>
-  
+
   <div class="header">
-    <h1>🎯 FB Friend Remover Pro</h1>
-    <div class="version" id="versionText">Version Gratuite</div>
+    <h1>👥 Friend Cleaner</h1>
+    <span class="badge">PRO VERSION (UNLOCKED)</span>
   </div>
-  
-  <div class="content">
+
+  <div class="container">
     
-    <!-- Section Premium -->
-    <div class="premium-features" id="premiumSection">
-      <h3>💎 Fonctionnalités Premium</h3>
-      <ul>
-        <li id="feature1" class="locked">Suppressions illimitées</li>
-        <li id="feature2" class="locked">Délai personnalisé (1-10s)</li>
-        <li id="feature3" class="locked">Limite de suppressions personnalisée</li>
-        <li id="feature4">Tous les filtres (Gratuit)</li>
-        <li id="feature5" class="locked">Modification en temps réel</li>
-      </ul>
-      <button id="upgradeBtn">💎 PASSER À PREMIUM - 9.99€</button>
-    </div>
-    
-    <!-- Paramètres -->
-    <div class="settings-section">
-      <h3>⚙️ Paramètres</h3>
-      <div class="input-group">
-        <label>Nombre d'amis à supprimer <span style="color: #FFD700;">🔒 Premium</span></label>
-        <input type="number" id="maxFriends" min="0" value="0" placeholder="0 = illimité" disabled>
-      </div>
-      <div class="input-group">
-        <label>Délai entre suppressions (secondes) <span style="color: #FFD700;">🔒 Premium</span></label>
-        <input type="number" id="delay" min="1" max="10" value="2" placeholder="2" disabled>
-      </div>
-      
-      <!-- Bouton Appliquer -->
-      <button class="apply-btn" id="applySettings">
-        <span>✓</span> Appliquer les modifications
-      </button>
-      
-      <!-- Note info -->
-      <div class="settings-note" id="settingsNote">
-        ℹ️ <strong>En cours d'exécution:</strong> Les modifications seront appliquées immédiatement
+    <div class="card" id="settingsCard">
+      <span class="section-title">Configuration</span>
+      <div class="settings-grid">
+        <div class="input-group">
+          <label>Limite (0 = tout)</label>
+          <input type="number" id="maxFriends" placeholder="ex: 50" min="0">
+        </div>
+        <div class="input-group">
+          <label>Délai (secondes)</label>
+          <input type="number" id="delay" value="1" min="0.5" step="0.5">
+        </div>
       </div>
     </div>
-    
-    <!-- Filtres -->
-    <div class="filter-section">
-      <div style="font-size: 11px; font-weight: 600; color: #65676b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
-        🎨 FILTRES DISPONIBLES
-      </div>
-      <button id="removeArabic">
-        <span class="btn-icon">📝</span>
-        <span class="btn-text">Noms en Arabe</span>
-      </button>
-      <button id="removeNonArabic">
-        <span class="btn-icon">🌍</span>
-        <span class="btn-text">Noms Non-Arabes</span>
-      </button>
-      <button id="removeNoMutual">
-        <span class="btn-icon">🚫</span>
-        <span class="btn-text">Sans amis communs</span>
-      </button>
-      <button id="removeAll">
-        <span class="btn-icon">🗑️</span>
-        <span class="btn-text">TOUS les amis</span>
-      </button>
-      <button id="resetBtn" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; display: flex;">
-        <span class="btn-icon">🔄</span>
-        <span class="btn-text">Réinitialiser</span>
-      </button>
-      <button id="stopButton">
-        <span class="btn-icon">⏹️</span>
-        <span class="btn-text">ARRÊTER</span>
-      </button>
-    </div>
-    
-    <!-- Statistiques -->
-    <div class="stats-section" id="statsSection" style="display: none;">
-      <h3>📊 Statistiques en temps réel</h3>
+
+    <div class="card stats-panel" id="statsCard">
+      <span class="section-title" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+        Progression en cours
+        <span style="font-size:18px;" class="icon">⚡</span>
+      </span>
       
-      <div class="stat-item">
-        <span class="stat-label">✅ Supprimés</span>
-        <span class="stat-value success" id="removedCount">0</span>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-value text-danger" id="countRemoved">0</span>
+          <span class="stat-label">Supprimés</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value text-muted" id="countSkipped">0</span>
+          <span class="stat-label">Ignorés</span>
+        </div>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
       </div>
       
-      <div class="stat-item">
-        <span class="stat-label">⏭️ Ignorés</span>
-        <span class="stat-value" id="skippedCount">0</span>
-      </div>
-      
-      <div class="stat-item">
-        <span class="stat-label">🎯 Limite</span>
-        <span class="stat-value info" id="limitDisplay">-</span>
-      </div>
-      
-      <div class="stat-item" id="premiumLimitRow" style="display: none;">
-        <span class="stat-label">🔓 Restant (Gratuit)</span>
-        <span class="stat-value warning" id="remainingCount">10</span>
-      </div>
-      
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressBar"></div>
-      </div>
-      
-      <div class="current-friend" id="currentFriend">
-        Prêt à démarrer...
+      <div class="action-info" id="currentAction">
+        Initialisation...
       </div>
     </div>
-    
-    <!-- Status -->
-    <div id="status">✨ Configurez et lancez la suppression</div>
-    
+
+    <div class="btn-group">
+      <button class="btn-action" id="btnArabic">
+        <span class="icon">📝</span> 
+        <span>Supprimer Noms Arabes</span>
+      </button>
+      
+      <button class="btn-action" id="btnNonArabic">
+        <span class="icon">🔤</span> 
+        <span>Supprimer Noms Non-Arabes</span>
+      </button>
+      
+      <button class="btn-action" id="btnNoMutual">
+        <span class="icon">🚫</span> 
+        <span>Sans amis communs</span>
+      </button>
+      
+      <button class="btn-primary" id="btnAll">
+        <span class="icon">🗑️</span> 
+        <span>TOUT SUPPRIMER (FULL)</span>
+      </button>
+      
+      <button class="btn-stop" id="btnStop">
+        ⏹️ ARRÊT D'URGENCE
+      </button>
+    </div>
+
+    <div id="statusBox" class="status-msg"></div>
+
   </div>
-  
-  <!-- Debug Premium -->
-  <div style="padding: 10px; background: #ffe; border-top: 2px dashed #ffc107; display: none;" id="debugSection">
-    <button id="debugPremium" style="width: 100%; background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">
-      🔧 DEBUG: Activer Premium
-    </button>
-  </div>
-  
   <script src="popup.js"></script>
 </body>
 </html>

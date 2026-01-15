@@ -1,475 +1,238 @@
 (function() {
-'use strict';
+    if (window.FB_CLEANER_LOADED) return;
+    window.FB_CLEANER_LOADED = true;
 
-if (window.FB_REMOVER_RUNNING) {
-    alert('⚠️ Script déjà actif!');
-    return;
-}
+    let state = {
+        isRunning: false,
+        stats: { removed: 0, skipped: 0 },
+        config: { filter: 'all', max: 0, delay: 1000 },
+        scrollContainer: null
+    };
 
-window.FB_REMOVER_RUNNING = true;
-window.FB_REMOVER_STOP = false;
-
-let CONFIG = window.FB_REMOVER_CONFIG || {
-    filter: 'all',
-    maxFriends: 0,
-    delay: 2000,
-    isPremium: false
-};
-
-window.FB_REMOVER_UPDATE_CONFIG = function(maxFriends, delay) {
-    CONFIG.maxFriends = maxFriends;
-    CONFIG.delay = delay;
-    console.log('🔄 Config mise à jour:', CONFIG);
-};
-
-console.log('==========================================');
-console.log('🎯 FB FRIEND REMOVER PRO v4.6');
-console.log('==========================================');
-console.log('Filtre:', CONFIG.filter);
-console.log('Limite:', CONFIG.maxFriends === 0 ? 'Illimité' : CONFIG.maxFriends);
-console.log('Délai:', CONFIG.delay + 'ms');
-console.log('Premium:', CONFIG.isPremium ? 'OUI ✅' : 'NON (limité à 10)');
-console.log('==========================================\n');
-
-let stats = {
-    removed: 0,
-    skipped: 0
-};
-
-const FREE_LIMIT = 10;
-let mainScrollContainer = null;
-
-function sendStats(currentFriend = null, action = '') {
-    try {
-        chrome.runtime.sendMessage({
-            type: 'STATS_UPDATE',
-            data: {
-                removed: stats.removed,
-                skipped: stats.skipped,
-                currentFriend: currentFriend,
-                action: action
-            }
-        });
-        chrome.storage.local.set({
-            isRunning: true,
-            currentStats: {
-                removed: stats.removed,
-                skipped: stats.skipped
-            }
-        });
-    } catch(e) {
-        console.log('Erreur envoi stats:', e);
+    function log(msg) { console.log(`[FB Cleaner] ${msg}`); }
+    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+    
+    // Envoi des stats au popup
+    function sendUpdate(action = '') {
+        try {
+            chrome.runtime.sendMessage({
+                type: 'UPDATE',
+                data: {
+                    stats: state.stats,
+                    isRunning: state.isRunning,
+                    action: action
+                }
+            });
+        } catch (e) { }
     }
-}
 
-function sendFinished() {
-    try {
-        chrome.runtime.sendMessage({
-            type: 'FINISHED',
-            data: {
-                removed: stats.removed,
-                skipped: stats.skipped
+    // --- 1. TROUVER LA BONNE BARRE DE SCROLL (C'est la clé !) ---
+    function findScrollableContainer() {
+        // On cherche une carte d'ami
+        const card = document.querySelector('div[data-visualcompletion="ignore-dynamic"]');
+        if (!card) return window; // Fallback
+
+        // On remonte les parents pour trouver celui qui a une scrollbar
+        let parent = card.parentElement;
+        while (parent) {
+            const style = window.getComputedStyle(parent);
+            // Vérifie si l'élément est scrollable verticalement
+            if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+                log("Conteneur de scroll trouvé !");
+                return parent;
             }
-        });
-        chrome.storage.local.set({
-            isRunning: false,
-            currentStats: null
-        });
-    } catch(e) {
-        console.log('Erreur envoi finished:', e);
-    }
-}
-
-function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function isArabic(text) {
-    return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
-}
-
-function hasMutualFriends(text) {
-    const lower = text.toLowerCase();
-    if (lower.includes('ami en commun') || lower.includes('amis en commun') || 
-        lower.includes('mutual friend')) {
-        const match = text.match(/(\d+)/);
-        return match ? parseInt(match[1]) > 0 : true;
-    }
-    return false;
-}
-
-async function findThreeDotsButton(container) {
-    const buttons = container.querySelectorAll('div[role="button"], [aria-label]');
-    for (let btn of buttons) {
-        const ariaLabel = btn.getAttribute('aria-label') || '';
-        const text = btn.textContent || '';
-        if (ariaLabel.toLowerCase().includes('plus') ||
-            ariaLabel.toLowerCase().includes('more') ||
-            text === '...' ||
-            (btn.querySelector('svg') && ariaLabel === '')) {
-            return btn;
+            parent = parent.parentElement;
+            if (parent === document.body) break;
         }
+        return window; // Si on ne trouve rien, on scroll la fenêtre
     }
-    return null;
-}
 
-function findMainScrollContainer() {
-    if (mainScrollContainer && document.contains(mainScrollContainer)) {
-        return mainScrollContainer;
-    }
-    
-    const allDivs = document.querySelectorAll('div');
-    let bestContainer = null;
-    let maxHeight = 0;
-    
-    for (let div of allDivs) {
-        const style = window.getComputedStyle(div);
-        const hasScroll = (style.overflowY === 'auto' || style.overflowY === 'scroll');
-        const isScrollable = div.scrollHeight > div.clientHeight + 100;
+    // --- 2. CHARGEMENT COMPLET ---
+    async function loadAllFriends() {
+        sendUpdate('🔍 Recherche du conteneur...');
+        state.scrollContainer = findScrollableContainer();
         
-        if (hasScroll && isScrollable && div.scrollHeight > maxHeight) {
-            const hasCards = div.querySelectorAll('[data-visualcompletion="ignore-dynamic"]').length > 0;
-            if (hasCards) {
-                bestContainer = div;
-                maxHeight = div.scrollHeight;
-            }
-        }
-    }
-    
-    if (bestContainer) {
-        mainScrollContainer = bestContainer;
-        console.log(`✅ Conteneur trouvé: ${bestContainer.scrollHeight}px`);
-        return bestContainer;
-    }
-    
-    return null;
-}
+        let previousCount = 0;
+        let retries = 0;
+        const maxRetries = 10; // On insiste lourdement
 
-// 🚀 PRÉ-CHARGEMENT RAPIDE AVEC LONGS SCROLLS
-async function preloadAllFriends() {
-    console.log('\n📦 PHASE 1: PRÉ-CHARGEMENT COMPLET');
-    console.log('='.repeat(50));
-    sendStats('Pré-chargement...', '📦 Initialisation');
-    
-    const container = findMainScrollContainer();
-    if (!container) {
-        console.log('⚠️ Conteneur non trouvé, scroll fenêtre');
-        await preloadWithWindowScroll();
-        return true;
-    }
-    
-    let scrollStep = 0;
-    const maxScrolls = 200;
-    
-    while (scrollStep < maxScrolls) {
-        const beforeScrollCount = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-        console.log(`\n📜 Scroll #${scrollStep + 1}`);
-        console.log(` 📊 Cartes actuelles: ${beforeScrollCount}`);
-        sendStats(`Chargement: ${beforeScrollCount} amis`, `📦 scroll ${scrollStep + 1}`);
-        
-        // Position actuelle
-        const currentPos = container.scrollTop;
-        const maxPos = container.scrollHeight - container.clientHeight;
-        const newPos = Math.min(currentPos + 800, maxPos); // LONGS SCROLLS (800px)
-        
-        console.log(` 📍 Scroll: ${currentPos}px → ${newPos}px`);
-        container.scrollTo({
-            top: newPos,
-            behavior: 'smooth'
-        });
-        
-        // ⏱️ ATTENTE RÉDUITE
-        console.log(' ⏱️ Attente 1.5 secondes...');
-        await wait(1500);
-        
-        // 🔍 VÉRIFICATION UNIQUE
-        const afterScrollCount = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-        const newCardsLoaded = afterScrollCount - beforeScrollCount;
-        
-        if (newCardsLoaded > 0) {
-            console.log(` ✅ +${newCardsLoaded} nouvelles cartes chargées`);
-        } else {
-            console.log(` ⏸️ Aucune nouvelle carte`);
-        }
-        
-        // Vérifier si on a atteint le bas
-        const currentScrollPos = container.scrollTop;
-        const maxScrollPos = container.scrollHeight - container.clientHeight;
-        
-        if (currentScrollPos >= maxScrollPos - 10) {
-            console.log(' 🔻 BAS ATTEINT!');
-            console.log(' ⏱️ Attente finale 2 secondes...');
-            await wait(2000);
+        sendUpdate('📥 Chargement de TOUTE la liste...');
+
+        while (state.isRunning) {
+            const currentCards = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]');
+            const currentCount = currentCards.length;
             
-            const beforeFinalCheck = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-            await wait(1500);
-            const afterFinalCheck = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-            
-            if (afterFinalCheck === beforeFinalCheck) {
-                console.log('\n✅ CHARGEMENT TERMINÉ!');
-                console.log(`📊 TOTAL: ${afterFinalCheck} amis chargés`);
-                break;
+            sendUpdate(`Chargé: ${currentCount} amis... (Ne touchez à rien)`);
+
+            // Scroll vers le bas du conteneur spécifique
+            if (state.scrollContainer === window) {
+                window.scrollTo(0, document.body.scrollHeight);
             } else {
-                console.log(` 📦 Encore ${afterFinalCheck - beforeFinalCheck} cartes chargées`);
+                state.scrollContainer.scrollTop = state.scrollContainer.scrollHeight;
+            }
+
+            await wait(1500); // Attente chargement Facebook
+
+            // Si le nombre a augmenté, c'est bon, on continue
+            if (currentCount > previousCount) {
+                previousCount = currentCount;
+                retries = 0; // Reset des essais
+                log(`Progression: ${currentCount} amis`);
+            } else {
+                // Rien de nouveau ? On insiste un peu
+                retries++;
+                // Petit "shake" pour débloquer le scroll
+                if (state.scrollContainer !== window) {
+                    state.scrollContainer.scrollTop = state.scrollContainer.scrollHeight - 200;
+                    await wait(300);
+                    state.scrollContainer.scrollTop = state.scrollContainer.scrollHeight;
+                }
+                
+                if (retries >= maxRetries) {
+                    log("Fin de la liste atteinte.");
+                    break; 
+                }
             }
         }
         
-        scrollStep++;
-        // Dans chaque cas d'arrêt dans processCards()
-        if (window.FB_REMOVER_STOP) {
-            console.log('\n⏹️ ARRÊTÉ');
-            sendFinished();
-            window.FB_REMOVER_RUNNING = false; // ✅ Déjà présent
-            alert(`⏹️ Arrêté!\n\nSupprimés: ${stats.removed}\nIgnorés: ${stats.skipped}`);
-            return;
-        }
-
+        // Remonter tout en haut avant de commencer
+        sendUpdate('✅ Liste chargée. Retour en haut...');
+        if (state.scrollContainer === window) window.scrollTo(0, 0);
+        else state.scrollContainer.scrollTop = 0;
+        
+        await wait(2000);
     }
-    
-    // Remonter en haut
-    console.log('\n⬆️ Retour en haut de la liste...');
-    container.scrollTo({
-        top: 0,
-        behavior: 'smooth'
+
+    // --- 3. SUPPRESSION ---
+    async function processRemoval() {
+        if (!state.isRunning) return;
+
+        const allCards = Array.from(document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]'));
+        log(`Début du traitement sur ${allCards.length} cartes`);
+
+        for (const card of allCards) {
+            if (!state.isRunning) break;
+            if (state.config.max > 0 && state.stats.removed >= state.config.max) {
+                finish('Limite atteinte.');
+                return;
+            }
+
+            // Ignorer ceux déjà traités visuellement
+            if (card.style.opacity === "0.1") continue;
+
+            const text = card.innerText;
+            const lines = text.split('\n').filter(l => l.length > 1);
+            if (lines.length === 0) continue;
+            
+            const name = lines[0];
+            const isAr = /[\u0600-\u06FF]/.test(name);
+            const hasMutual = text.toLowerCase().includes('commun') || text.toLowerCase().includes('mutual');
+
+            let shouldRemove = false;
+            switch (state.config.filter) {
+                case 'arabic': shouldRemove = isAr; break;
+                case 'non-arabic': shouldRemove = !isAr; break;
+                case 'no-mutual': shouldRemove = !hasMutual; break;
+                case 'all': shouldRemove = true; break;
+            }
+
+            // Scroll l'élément dans la vue pour être sûr que le bouton est cliquable
+            card.scrollIntoView({ block: 'center', behavior: 'auto' });
+            
+            if (!shouldRemove) {
+                state.stats.skipped++;
+                // On ne log que tous les 10 pour pas spammer
+                if (state.stats.skipped % 10 === 0) sendUpdate(`Ignoré: ${name}`);
+                continue;
+            }
+
+            // --- ACTION SUPPRESSION ---
+            sendUpdate(`Suppression: ${name}`);
+            
+            // Chercher le bouton (...)
+            let menuBtn = card.querySelector('div[aria-label="Actions"], div[aria-label="Plus"]');
+            if (!menuBtn) {
+                // Recherche large
+                const buttons = card.querySelectorAll('div[role="button"]');
+                for (let b of buttons) {
+                    if (b.innerHTML.includes('<svg') || b.textContent.includes('...')) {
+                        menuBtn = b;
+                        break; // On prend le premier qui ressemble
+                    }
+                }
+            }
+
+            if (menuBtn) {
+                try {
+                    menuBtn.click();
+                    await wait(1000); // Attendre menu
+
+                    // Chercher "Retirer" dans tout le document (car menu flottant)
+                    const menuItems = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"]'));
+                    const removeBtn = menuItems.find(el => {
+                        const t = el.innerText.toLowerCase();
+                        return (t.includes('retirer') || t.includes('unfriend') || t.includes('supprimer')) && t.includes('ami');
+                    });
+
+                    if (removeBtn) {
+                        removeBtn.click();
+                        await wait(1000); // Attendre confirmation
+
+                        const confirmBtns = Array.from(document.querySelectorAll('div[aria-label="Confirmer"], div[aria-label="Confirm"]'));
+                        // Souvent le bouton de confirmation est le dernier bouton bleu chargé
+                        const finalBtn = confirmBtns.find(b => b.innerText.length > 0) || document.querySelector('div[role="dialog"] div[role="button"][tabindex="0"]');
+
+                        if (finalBtn) {
+                            finalBtn.click();
+                            state.stats.removed++;
+                            card.style.opacity = "0.1"; // Masquer visuellement
+                            card.style.pointerEvents = "none";
+                            sendUpdate(`✅ Supprimé: ${name}`);
+                            await wait(state.config.delay);
+                        } else {
+                            document.body.click(); // Annuler si pas trouvé
+                        }
+                    } else {
+                        document.body.click(); // Fermer menu
+                    }
+                } catch (e) {
+                    document.body.click();
+                }
+            }
+            await wait(200); // Petite pause
+        }
+        
+        finish('Terminé !');
+    }
+
+    function finish(msg) {
+        state.isRunning = false;
+        sendUpdate(msg);
+        //setTimeout(() => alert(msg + `\nSupprimés: ${state.stats.removed}`), 500);
+    }
+
+    chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+        if (req.type === 'START') {
+            console.clear();
+            
+            // RESET COMPLET DES ETATS
+            state.stats = { removed: 0, skipped: 0 };
+            state.isRunning = true;
+            state.config = req.config;
+            
+            // Réinitialiser le DOM (au cas où on relance sans rafraichir)
+            document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').forEach(el => {
+                el.style.opacity = "1";
+                el.style.pointerEvents = "auto";
+            });
+
+            (async () => {
+                await loadAllFriends();
+                await processRemoval();
+            })();
+        } else if (req.type === 'STOP') {
+            state.isRunning = false;
+            sendUpdate('Arrêt demandé');
+        }
     });
-    await wait(1500);
-    
-    const totalCards = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-    console.log('\n' + '='.repeat(50));
-    console.log(`✅ CHARGEMENT TERMINÉ - ${totalCards} amis prêts\n`);
-    return true;
-}
-
-async function preloadWithWindowScroll() {
-    let scrolls = 0;
-    while (scrolls < 100) {
-        const beforeCount = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-        console.log(`\n📜 Scroll fenêtre #${scrolls + 1}: ${beforeCount} cartes`);
-        sendStats(`Chargement: ${beforeCount} amis`, '📦 scroll fenêtre');
-        
-        window.scrollBy({ top: 800, behavior: 'smooth' }); // LONG SCROLL
-        
-        console.log(' ⏱️ Attente 1.5s...');
-        await wait(1500);
-        
-        const afterCount = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-        const diff = afterCount - beforeCount;
-        
-        if (diff > 0) {
-            console.log(` ✅ +${diff} cartes`);
-        } else {
-            console.log(' ⏸️ Aucune nouvelle carte');
-        }
-        
-        const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
-        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-        
-        if (scrollPos >= maxScroll - 100) {
-            console.log(' 🔻 Bas atteint, attente finale...');
-            await wait(2000);
-            
-            const finalBefore = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-            await wait(1500);
-            const finalAfter = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]').length;
-            
-            if (finalAfter === finalBefore) {
-                console.log(`\n✅ Terminé: ${finalAfter} amis`);
-                break;
-            }
-        }
-        
-        scrolls++;
-        if (window.FB_REMOVER_STOP) return false;
-    }
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    await wait(1500);
-    return true;
-}
-
-async function processCards() {
-    // Lire config
-    try {
-        const storage = await chrome.storage.local.get(['maxFriends', 'delay']);
-        if (CONFIG.isPremium) {
-            if (storage.maxFriends !== undefined) {
-                CONFIG.maxFriends = storage.maxFriends;
-            }
-            if (storage.delay !== undefined) {
-                CONFIG.delay = storage.delay * 1000;
-            }
-        }
-    } catch(e) {}
-    
-    // Vérifications
-    if (!CONFIG.isPremium && stats.removed >= FREE_LIMIT) {
-        console.log('\n🔒 LIMITE GRATUITE');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        alert(`🔒 Limite gratuite atteinte!\n\n${stats.removed}/${FREE_LIMIT} supprimés\n\n💎 Passez à Premium!`);
-        return;
-    }
-    
-    if (window.FB_REMOVER_STOP) {
-        console.log('\n⏹️ ARRÊTÉ');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        alert(`⏹️ Arrêté!\n\nSupprimés: ${stats.removed}\nIgnorés: ${stats.skipped}`);
-        return;
-    }
-    
-    if (CONFIG.maxFriends > 0 && stats.removed >= CONFIG.maxFriends) {
-        console.log('\n🎯 LIMITE ATTEINTE');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        alert(`🎯 Limite!\n\nSupprimés: ${stats.removed}\nIgnorés: ${stats.skipped}`);
-        return;
-    }
-    
-    if (!window.location.href.includes('/friends')) {
-        console.log('\n⚠️ Plus sur /friends');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        return;
-    }
-    
-    console.log('\n🔍 Recherche cartes...');
-    const allCards = document.querySelectorAll('div[data-visualcompletion="ignore-dynamic"]');
-    console.log(`📊 ${allCards.length} cartes`);
-    
-    if (allCards.length === 0) {
-        console.log('\n✅ TERMINÉ');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        alert(`✅ Terminé!\n\nSupprimés: ${stats.removed}\nIgnorés: ${stats.skipped}`);
-        return;
-    }
-    
-    let processedAny = false;
-    
-    for (let card of allCards) {
-        const cardText = card.textContent;
-        
-        if (cardText.includes('Non lu') || cardText.includes('Marquer comme lue') ||
-            cardText.includes('Ajouter amie') || cardText.includes('Ajouter ami') ||
-            cardText.includes('Amie retiré') || cardText.includes('Ami retiré') ||
-            cardText.includes('vous a envoyé') || cardText.includes('invitation') ||
-            cardText.includes('Confirmer') || cardText.includes('Add Friend') ||
-            cardText.includes('Suggestions')) {
-            continue;
-        }
-        
-        const nameLink = card.querySelector('a[role="link"]');
-        if (!nameLink) continue;
-        
-        const name = nameLink.textContent.trim();
-        if (!name || name.length < 2) continue;
-        
-        const arabic = isArabic(name);
-        const mutual = hasMutualFriends(cardText);
-        
-        console.log(`\n👤 ${name} | Arabe: ${arabic} | Communs: ${mutual}`);
-        
-        let shouldRemove = false;
-        switch(CONFIG.filter) {
-            case 'arabic': shouldRemove = arabic; break;
-            case 'non-arabic': shouldRemove = !arabic; break;
-            case 'no-mutual': shouldRemove = !mutual; break;
-            case 'all': shouldRemove = true; break;
-        }
-        
-        if (!shouldRemove) {
-            stats.skipped++;
-            sendStats(name, '⏭️ ignoré');
-            console.log(' ⏭️ Ignoré');
-            continue;
-        }
-        
-        console.log(' 🎯 Correspond!');
-        sendStats(name, '🔄 suppression...');
-        
-        const threeDotsButton = await findThreeDotsButton(card);
-        if (!threeDotsButton) {
-            console.log(' ❌ Bouton introuvable');
-            continue;
-        }
-        
-        console.log(' ✅ Ouverture menu...');
-        threeDotsButton.click();
-        await wait(1000);
-        
-        const menuItems = document.querySelectorAll('div[role="menuitem"], span');
-        let unfriendOption = null;
-        
-        for (let item of menuItems) {
-            const text = item.textContent.toLowerCase();
-            if ((text.includes('retirer') && text.includes('ami')) ||
-                text.includes('unfriend') ||
-                (text.includes('remove') && text.includes('friend'))) {
-                unfriendOption = item;
-                break;
-            }
-        }
-        
-        if (!unfriendOption) {
-            console.log(' ❌ Option introuvable');
-            document.body.click();
-            await wait(300);
-            continue;
-        }
-        
-        console.log(' ✅ Clic retirer...');
-        unfriendOption.click();
-        await wait(1000);
-        
-        const confirmButtons = document.querySelectorAll('div[role="button"], button');
-        let confirmed = false;
-        
-        for (let btn of confirmButtons) {
-            const text = btn.textContent.toLowerCase();
-            if (text.includes('confirmer') || text.includes('confirm') ||
-                text.includes('retirer') || text.includes('remove')) {
-                console.log(' ✅ Confirmation...');
-                btn.click();
-                stats.removed++;
-                confirmed = true;
-                console.log(` ✅✅✅ SUPPRIMÉ! (${stats.removed})`);
-                sendStats(name, '✅ supprimé');
-                processedAny = true;
-                break;
-            }
-        }
-        
-        if (confirmed) {
-            await wait(CONFIG.delay);
-            setTimeout(processCards, 500);
-            return;
-        }
-    }
-    
-    if (!processedAny) {
-        console.log('\n✅ TERMINÉ');
-        sendFinished();
-        window.FB_REMOVER_RUNNING = false;
-        alert(`✅ Terminé!\n\nSupprimés: ${stats.removed}\nIgnorés: ${stats.skipped}`);
-        return;
-    }
-    
-    processCards();
-}
-
-// 🚀 DÉMARRAGE
-console.log('🚀 Démarrage dans 2s...\n');
-chrome.storage.local.set({ isRunning: true, currentStats: { removed: 0, skipped: 0 } });
-
-setTimeout(async () => {
-    const loaded = await preloadAllFriends();
-    if (loaded !== false) {
-        console.log('\n🎯 PHASE 2: SUPPRESSIONS');
-        console.log('='.repeat(50) + '\n');
-        await wait(1000);
-        processCards();
-    }
-}, 2000);
-
 })();
