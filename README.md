@@ -1,4 +1,8 @@
-# Facebook Friend Remover Pro
+# 🧹 Facebook Friend Remover Pro
+
+[![Chrome](https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome)]()
+[![Manifest](https://img.shields.io/badge/Manifest-V3-blue)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Une extension Chrome avancée pour supprimer intelligemment des amis Facebook avec des filtres avancés.
 
